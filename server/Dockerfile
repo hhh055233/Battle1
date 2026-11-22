@@ -1,5 +1,6 @@
 # שרת המשחק (Node + WebSocket) כקונטיינר - מתאים ל-Render / Fly.io / Railway / כל שרת עם Docker.
 # השרת מגיש גם את האתר עצמו, ולכן אפשר להיכנס ישירות לכתובת שלו ולשחק.
+# בנייה מקומית (הקשר הבנייה הוא שורש הפרויקט):  docker build -f server/Dockerfile -t chicken-royale .
 FROM node:22-alpine
 WORKDIR /app
 COPY package.json ./

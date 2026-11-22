@@ -81,7 +81,7 @@ npm run loadtest     # בדיקה אוטומטית: 50 שחקנים מדומים
 ב-`render.yaml` מוגדר אזור Frankfurt, הקרוב ביותר לישראל, כדי שההשהיה במשחק תהיה נמוכה.
 
 התוכנית החינמית של Render "נרדמת" אחרי כ-15 דקות בלי תנועה (הכניסה הראשונה אחר כך לוקחת כחצי דקה) ומקבלת מעט מאוד CPU, ולכן היא מתאימה לבדיקות. למשחקי 50 שחקנים כדאי תוכנית בתשלום קטנה (Starter) או VPS.
-אותו `Dockerfile` עובד גם ב-Railway, Fly.io וכל שרת עם Docker.
+אותו `server/Dockerfile` עובד גם ב-Railway, Fly.io וכל שרת עם Docker (הקשר הבנייה הוא שורש הפרויקט: `docker build -f server/Dockerfile .`).
 
 ### לחבר את האתר שב-Vercel לשרת
 
@@ -209,7 +209,7 @@ scripts/              שרת סטטי מקומי (npm run dev) והורדת הס
 vercel.json           הגדרות פריסה (כותרות, cleanUrls)
 server/server.mjs     שרת המשחק (Node + ws): חדרים, הסימולציה, הגשת האתר
 server/loadtest.mjs   בדיקת עומס: 50 שחקנים דרך אותו קוד לקוח
-Dockerfile, render.yaml   פריסת השרת (Docker / Render Blueprint)
+server/Dockerfile, render.yaml   פריסת השרת (Docker / Render Blueprint)
 ```
 
 ## התאמות מהירות

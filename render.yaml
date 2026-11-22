@@ -1,9 +1,12 @@
 # Render Blueprint: שרת המשחק כשירות Docker בחינם.
 # מעלים את הפרויקט ל-GitHub ואז ב-render.com: New > Blueprint > בוחרים את הריפו.
+# ה-Dockerfile יושב ב-server/ (ולא בשורש) כדי ש-Vercel לא יזהה את האתר כפרויקט קונטיינר.
 services:
   - type: web
     name: chicken-royale
     runtime: docker
+    dockerfilePath: ./server/Dockerfile
+    dockerContext: .
     plan: free
     region: frankfurt   # הקרוב ביותר לישראל (השהיה נמוכה יותר)
     healthCheckPath: /health
