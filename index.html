@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Chicken Royale - באטל רויאל בדפדפן</title>
+<meta name="description" content="משחק באטל רויאל תלת-ממדי בדפדפן. צרו חדר, שלחו קוד לחברים, עד 50 שחקנים. בחינם.">
+<link rel="stylesheet" href="css/style.css">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Ctext y='52' font-size='52'%3E%F0%9F%90%94%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+<canvas id="c"></canvas>
+
+<!-- ===== תפריט ראשי ===== -->
+<section id="menu" class="screen">
+  <div class="menu-bg"></div>
+  <div class="panel main-panel">
+    <h1>CHICKEN <span>ROYALE</span></h1>
+    <p class="sub">באטל רויאל תלת-ממדי בדפדפן · עד 50 שחקנים · בחינם</p>
+    <label class="field">השם שלך
+      <input id="name" maxlength="14" placeholder="שם שחקן" autocomplete="off">
+    </label>
+    <div class="row">
+      <button id="btn-create" class="btn primary">צור חדר</button>
+      <button id="btn-solo" class="btn">משחק מהיר נגד בוטים</button>
+    </div>
+    <div class="row join">
+      <input id="code" maxlength="5" placeholder="קוד חדר" autocomplete="off" spellcheck="false">
+      <button id="btn-join" class="btn">הצטרף</button>
+    </div>
+    <p id="menu-msg" class="msg"></p>
+    <details class="help">
+      <summary>בקרות</summary>
+      <div class="keys">
+        <span><b>WASD</b> תנועה</span><span><b>Shift</b> ריצה</span><span><b>Space</b> קפיצה</span>
+        <span><b>C</b> כריעה</span><span><b>Z</b> שכיבה</span><span><b>עכבר שמאלי</b> ירי</span>
+        <span><b>עכבר ימני</b> כוונת</span><span><b>R</b> טעינה</span><span><b>1 / 2</b> נשק</span>
+        <span><b>F</b> איסוף / קפיצה מהמטוס</span><span><b>Tab</b> תיק</span><span><b>G</b> זריקת רימון (החזק = בישול)</span>
+        <span><b>Q</b> החלף רימון</span><span><b>H</b> תרופה</span><span><b>B</b> אנרגיה</span>
+        <span><b>V</b> גוף ראשון/שלישי</span><span><b>M</b> מפה</span><span><b>Y</b> צ'אט</span>
+        <span><b>X</b> החלפת מצב ירי</span><span><b>Esc</b> תפריט</span>
+      </div>
+    </details>
+  </div>
+</section>
+
+<!-- ===== לובי ===== -->
+<section id="lobby" class="screen hidden">
+  <div class="menu-bg"></div>
+  <div class="panel lobby-panel">
+    <div class="lobby-top">
+      <div>
+        <div class="tiny">קוד חדר</div>
+        <div id="room-code" class="code">-----</div>
+      </div>
+      <div class="lobby-actions">
+        <button id="btn-copy" class="btn small">העתק קישור</button>
+        <button id="btn-leave" class="btn small danger">יציאה</button>
+      </div>
+    </div>
+    <div class="lobby-grid">
+      <div class="box">
+        <h3>שחקנים <span id="pl-count"></span></h3>
+        <ul id="pl-list"></ul>
+      </div>
+      <div class="box" id="settings">
+        <h3>הגדרות משחק <span class="tiny" id="set-note"></span></h3>
+        <label>מקסימום שחקנים <input type="range" id="s-max" min="2" max="50" value="50"><b id="s-max-v">50</b></label>
+        <label>בוטים (משלימים את החדר) <input type="range" id="s-bots" min="0" max="49" value="20"><b id="s-bots-v">20</b></label>
+        <label>מהירות אזור
+          <select id="s-speed"><option value="1">רגילה</option><option value="1.5">מהירה</option><option value="2">מהירה מאוד</option><option value="3">בליץ'</option></select>
+        </label>
+        <label>רמת בוטים
+          <select id="s-skill"><option value="0.6">קלה</option><option value="0.85" selected>בינונית</option><option value="1.1">קשה</option></select>
+        </label>
+        <label>מצלמה
+          <select id="s-view"><option value="both">גוף ראשון + שלישי</option><option value="fpp">גוף ראשון בלבד</option><option value="tpp">גוף שלישי בלבד</option></select>
+        </label>
+        <label>שעה
+          <select id="s-time"><option value="day">יום</option><option value="dusk">שקיעה</option><option value="night">לילה</option></select>
+        </label>
+        <label>ערפל
+          <select id="s-fog"><option value="0">רגיל</option><option value="1">כבד</option></select>
+        </label>
+      </div>
+    </div>
+    <button id="btn-start" class="btn primary big">התחל משחק</button>
+    <p id="lobby-msg" class="msg"></p>
+  </div>
+</section>
+
+<!-- ===== טעינה ===== -->
+<section id="loading" class="screen hidden"><div class="panel"><div class="spinner"></div><p id="loading-text">טוען מפה...</p></div></section>
+
+<!-- ===== HUD ===== -->
+<div id="hud" class="hidden">
+  <div id="compass"><div id="compass-strip"></div><div id="compass-mark"></div></div>
+  <div id="top-right">
+    <canvas id="minimap" width="200" height="200"></canvas>
+    <div class="counters"><div><b id="c-alive">0</b><small>חיים</small></div><div><b id="c-kills">0</b><small>הריגות</small></div></div>
+  </div>
+  <div id="zone-info"><div id="zone-text"></div><div id="zone-timer"></div></div>
+  <div id="killfeed"></div>
+  <div id="chat-log"></div>
+  <input id="chat-in" class="hidden" maxlength="120" placeholder="הודעה...">
+  <div id="crosshair"><i></i><i></i><i></i><i></i></div>
+  <div id="hitmark"></div>
+  <div id="scope-ov" class="hidden"></div>
+  <div id="prompt" class="hidden"></div>
+  <div id="action-bar" class="hidden"><div id="action-fill"></div><span id="action-text"></span></div>
+  <div id="banner" class="hidden"></div>
+  <div id="bottom-center">
+    <div id="armor-row"><div class="gear" id="g-helm"><span>קסדה</span><i></i></div><div class="gear" id="g-vest"><span>אפוד</span><i></i></div><div class="gear" id="g-pack"><span>תיק</span><i></i></div></div>
+    <div class="bars"><div class="bar boost"><div id="boost-fill"></div></div><div class="bar hp"><div id="hp-fill"></div><b id="hp-text">100</b></div></div>
+    <div id="throw-sel"></div>
+  </div>
+  <div id="weapons-box">
+    <div class="wslot" id="ws0"></div><div class="wslot" id="ws1"></div>
+    <div id="ammo"><b id="ammo-mag">0</b><span id="ammo-res">/ 0</span><small id="ammo-mode"></small></div>
+  </div>
+  <div id="dmg-flash"></div><div id="zone-flash"></div><div id="stun-ov"></div>
+  <div id="dmg-ind"></div>
+  <div id="fall-info" class="hidden"></div>
+  <div id="spectate" class="hidden"><span id="spec-name"></span><small>לחץ על העכבר להחלפה</small></div>
+  <div id="net-stat"></div>
+</div>
+
+<!-- ===== תיק ===== -->
+<section id="inv" class="screen overlay hidden">
+  <div class="panel inv-panel">
+    <h2>תיק <span id="inv-cap"></span></h2>
+    <div class="inv-grid">
+      <div class="box"><h3>ציוד</h3><div id="inv-equip"></div><h3>נשקים</h3><div id="inv-weapons"></div></div>
+      <div class="box"><h3>פריטים</h3><div id="inv-items"></div></div>
+      <div class="box"><h3>על הרצפה</h3><div id="inv-ground"></div></div>
+    </div>
+    <p class="tiny">לחיצה = שימוש/החזקה · לחיצה ימנית = זריקה</p>
+  </div>
+</section>
+
+<!-- ===== מפה ===== -->
+<section id="bigmap" class="screen overlay hidden"><canvas id="map-canvas" width="900" height="900"></canvas><p class="tiny">M לסגירה</p></section>
+
+<!-- ===== תפריט הפסקה ===== -->
+<section id="pause" class="screen overlay hidden">
+  <div class="panel">
+    <h2>הפסקה</h2>
+    <label class="field">רגישות עכבר <input type="range" id="p-sens" min="1" max="30" value="10"></label>
+    <label class="field">עוצמת שמע <input type="range" id="p-vol" min="0" max="100" value="60"></label>
+    <label class="field">שדה ראייה <input type="range" id="p-fov" min="60" max="110" value="80"></label>
+    <label class="field">איכות צללים
+      <select id="p-shadow"><option value="0">כבויים</option><option value="1024">נמוכה</option><option value="2048" selected>גבוהה</option></select>
+    </label>
+    <div class="row"><button id="btn-resume" class="btn primary">המשך</button><button id="btn-quit" class="btn danger">צא מהמשחק</button></div>
+  </div>
+</section>
+
+<!-- ===== מוות / סיום ===== -->
+<section id="endscreen" class="screen overlay hidden">
+  <div class="panel end-panel">
+    <h1 id="end-title"></h1>
+    <p id="end-sub" class="sub"></p>
+    <table id="end-table"></table>
+    <div class="row"><button id="btn-spec" class="btn hidden">צפה בשחקנים</button><button id="btn-back" class="btn primary">חזרה ללובי</button></div>
+  </div>
+</section>
+<div id="toast"></div>
+
+<script>
+// טוענים את הספריות (three.js ו-PeerJS) ממקור זמין: קודם מקומי (vendor/), אחר כך CDN.
+(async function () {
+  const THREE = ['./vendor/three.module.js', 'https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js', 'https://unpkg.com/three@0.160.0/build/three.module.js'];
+  const PEER = ['./vendor/peerjs.min.js', 'https://cdn.jsdelivr.net/npm/peerjs@1.5.4/dist/peerjs.min.js', 'https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js'];
+  const ok = async (u) => { try { const r = await fetch(u, { method: 'GET', cache: 'force-cache' }); return r.ok && !/text\/html/.test(r.headers.get('content-type') || ''); } catch (e) { return false; } };
+  let three = null;
+  for (const u of THREE) { if (await ok(u)) { three = u; break; } }
+  if (!three) { document.getElementById('menu-msg').textContent = 'לא ניתן לטעון את three.js. בדקו חיבור לאינטרנט.'; return; }
+  const im = document.createElement('script'); im.type = 'importmap'; im.textContent = JSON.stringify({ imports: { three } }); document.head.appendChild(im);
+  const loadScript = (u) => new Promise((res, rej) => { const s = document.createElement('script'); s.src = u; s.onload = res; s.onerror = rej; document.head.appendChild(s); });
+  for (const u of PEER) { try { if (await ok(u)) { await loadScript(u); break; } } catch (e) { /* next */ } }
+  const m = document.createElement('script'); m.type = 'module'; m.src = './js/main.js'; document.body.appendChild(m);
+})();
+</script>
+</body>
+</html>

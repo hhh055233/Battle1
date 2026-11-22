@@ -1,0 +1,19 @@
+{
+  "name": "chicken-royale",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "משחק באטל רויאל בדפדפן עם חדרים ועד 50 שחקנים",
+  "scripts": {
+    "start": "node server/server.mjs",
+    "vendor": "node scripts/fetch-vendor.mjs",
+    "dev": "node scripts/serve.mjs",
+    "loadtest": "node server/loadtest.mjs"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

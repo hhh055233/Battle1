@@ -1,0 +1,8 @@
+# Render Blueprint: שרת המשחק כשירות Docker בחינם.
+# מעלים את הפרויקט ל-GitHub ואז ב-render.com: New > Blueprint > בוחרים את הריפו.
+services:
+  - type: web
+    name: chicken-royale
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
