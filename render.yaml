@@ -5,4 +5,5 @@ services:
     name: chicken-royale
     runtime: docker
     plan: free
+    region: frankfurt   # הקרוב ביותר לישראל (השהיה נמוכה יותר)
     healthCheckPath: /health
