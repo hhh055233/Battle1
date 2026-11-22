@@ -261,24 +261,8 @@ export function buildCharacter(color) {
 const clampv = (v, a, b) => (v < a ? a : v > b ? b : v);
 
 // ---------- מטוס ----------
-export function buildPlane() {
-  const g = new THREE.Group();
-  const bodyM = mat('pbody', 0xd7dbe0, { r: 0.45, m: 0.3 }), darkM = mat('pdark', 0x3b4350), stripe = mat('pstripe', 0xc0392b);
-  const fus = cyl(3.2, 3.2, 40, bodyM, 14); fus.rotation.x = Math.PI / 2; g.add(fus);
-  const nose = new THREE.Mesh(new THREE.SphereGeometry(3.2, 14, 10), bodyM); nose.position.z = -20; nose.scale.z = 1.6; g.add(nose);
-  const tail = new THREE.Mesh(new THREE.ConeGeometry(3.2, 12, 14), bodyM); tail.rotation.x = -Math.PI / 2; tail.position.z = 25.5; g.add(tail);
-  g.add(box(46, 0.7, 6.5, bodyM, 0, 0.6, -2));
-  g.add(box(14, 0.5, 3.5, bodyM, 0, 1, 27));
-  g.add(box(0.6, 8, 6, bodyM, 0, 5, 26));
-  g.add(box(6.5, 0.05, 40, stripe, 0, 1.3, 0)).scale.set(0.02, 1, 1);
-  for (const x of [-14, -6, 6, 14]) {
-    const e = cyl(1.1, 1.1, 3.5, darkM, 12); e.rotation.x = Math.PI / 2; e.position.set(x, -0.2, -4.5); g.add(e);
-    const p = box(0.25, 5, 0.2, mat('prop', 0x222222), x, -0.2, -6.4); p.userData.spin = true; g.add(p);
-  }
-  g.add(box(5.2, 1.5, 0.4, mat('glass', 0x6a8fa8, { r: 0.1, m: 0.5 }), 0, 1.2, -22.4));
-  g.traverse((o) => { if (o.isMesh) o.castShadow = false; });
-  return g;
-}
+// המטוס (הרקולס) בנוי ב-plane.js מגאומטריה מאוחדת; כאן רק מייצאים אותו כדי ש-game.js ימשיך לייבא מ-models.js
+export { buildPlane } from './plane.js';
 
 export function buildParachute() {
   const g = new THREE.Group();

@@ -900,8 +900,8 @@ export class Game {
     const pos = eye.clone();
     const showBody = (viewTpp && alive && (M.phase === 'ground' || M.phase === 'chute' || M.phase === 'fall')) || (M.phase === 'dead');
     if (M.phase === 'plane') {
-      pos.set(b.x - Math.sin(yaw) * 0, b.y + 6, b.z).addScaledVector(new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)), 38);
-      cam.position.copy(pos); cam.rotation.set(-0.25, yaw, 0);
+      pos.set(b.x, b.y + 11, b.z).addScaledVector(new THREE.Vector3(Math.sin(yaw), 0, Math.cos(yaw)), 56); // מצלמת מרדף מאחורי המטוס ומעליו, רואים את כולו
+      cam.position.copy(pos); cam.rotation.set(-0.19, yaw, 0);
     } else if (viewTpp || M.phase === 'dead') {
       const fwd = new THREE.Vector3(-Math.sin(yaw) * Math.cos(pitch), Math.sin(pitch), -Math.cos(yaw) * Math.cos(pitch));
       const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
