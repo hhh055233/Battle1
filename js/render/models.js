@@ -1,5 +1,8 @@
 // מודלים תלת-ממדיים מפרימיטיבים: דמויות ריאליסטיות עם קסדה/אפוד/תיק, נשקים, רימונים, מטוס, חבילת אספקה ופריטי לוט.
 import * as THREE from 'three';
+import { makeBody } from './character.js';
+import { DEFAULT_LOOK, sanitizeLook } from '../sim/look.js';
+import { gearGroup, packMount, packStrapGroup } from './gear.js';
 import { WEAPONS, HELMET, VEST, PACK, AMMO, THROWS, itemInfo } from '../sim/data.js';
 
 const M = {}; // מטריאלים משותפים
@@ -104,32 +107,27 @@ const HELM_MATS = [null, () => mat('h1', 0xeeeeee, { r: 0.3, m: 0.1 }), () => ma
 const VEST_MATS = [null, () => mat('v1', 0x2a2e36), () => mat('v2', 0x1f2a42), () => mat('v3', 0x6d6a45)];
 const PACK_MATS = [null, () => mat('p1', 0xc9b58a), () => mat('p2', 0x56743c), () => mat('p3', 0x3a452c)];
 
-export function buildCharacter(color) {
+export function buildCharacter(color, look) {
   const root = new THREE.Group(); // רשות ל-yaw
   const body = new THREE.Group(); root.add(body); // לשכיבה/כריעה
-  const shirt = mat('shirt' + color, color, { r: 0.85 });
-  const pants = mat('pants', 0x3a3f4a, { r: 0.9 });
-  const boots = mat('boots', 0x1c1b1a, { r: 0.7 });
+  const parts = makeBody(look || DEFAULT_LOOK);
 
-  // רגליים
+  // רגליים (הגאומטריה משותפת לשתי הרגליים)
   const legs = [];
   for (const s of [-1, 1]) {
     const hip = new THREE.Group(); hip.position.set(0.1 * s, 0.9, 0);
-    const thigh = box(0.17, 0.47, 0.2, pants, 0, -0.23, 0); hip.add(thigh);
-    const knee = new THREE.Group(); knee.position.set(0, -0.46, 0); hip.add(knee);
-    knee.add(box(0.15, 0.4, 0.18, pants, 0, -0.2, 0));
-    knee.add(box(0.16, 0.1, 0.27, boots, 0, -0.42, -0.04));
+    hip.add(new THREE.Mesh(parts.thigh.geometry, parts.thigh.material));
+    const knee = new THREE.Group(); knee.position.set(0, -0.45, 0); hip.add(knee);
+    knee.add(new THREE.Mesh(parts.shin.geometry, parts.shin.material));
     body.add(hip); legs.push({ hip, knee });
   }
   // פלג גוף עליון
   const upper = new THREE.Group(); upper.position.set(0, 0.9, 0); body.add(upper);
-  upper.add(box(0.4, 0.58, 0.24, shirt, 0, 0.3, 0));
-  upper.add(box(0.42, 0.14, 0.26, pants, 0, 0.02, 0));
+  upper.add(parts.torso);
   // ראש
-  const head = new THREE.Group(); head.position.set(0, 0.76, 0); upper.add(head);
-  const hd = new THREE.Mesh(new THREE.SphereGeometry(0.115, 14, 12), skin()); hd.castShadow = true; hd.scale.set(0.95, 1.1, 1); head.add(hd);
-  head.add(box(0.06, 0.05, 0.05, skin(), 0, -0.1, 0));
-  const hair = new THREE.Mesh(new THREE.SphereGeometry(0.12, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.55), mat('hair', 0x2b2118, { r: 0.95 })); hair.position.y = 0.01; head.add(hair);
+  const head = new THREE.Group(); head.position.set(0, 0.78, 0); upper.add(head);
+  head.add(parts.head); head.scale.setScalar(1.1);
+  const hairMesh = parts.hair; if (hairMesh) head.add(hairMesh);
   // קסדה (מוחלפת לפי רמה)
   const helmetSlot = new THREE.Group(); head.add(helmetSlot);
   // אפוד
@@ -138,53 +136,35 @@ export function buildCharacter(color) {
   const packSlot = new THREE.Group(); upper.add(packSlot);
   // זרועות + נשק
   const wslot = new THREE.Group(); wslot.position.set(0.16, 0.45, -0.28); upper.add(wslot);
-  const mkArm = () => {
+  const mkArm = (k) => {
     const a = new THREE.Group();
-    a.add(box(0.11, 0.3, 0.11, shirt, 0, -0.15, 0));
+    a.add(parts.armU[k]);
     const fore = new THREE.Group(); fore.position.y = -0.3; a.add(fore);
-    fore.add(box(0.1, 0.28, 0.1, shirt, 0, -0.13, 0));
-    fore.add(box(0.09, 0.09, 0.09, mat('gloves', 0x25272a, { r: 0.9 }), 0, -0.3, 0));
+    fore.add(parts.armF[k]);
     a.userData.fore = fore;
     return a;
   };
-  const armR = mkArm(), armL = mkArm();
+  const armR = mkArm(0), armL = mkArm(1);
   armR.position.set(0.25, 0.54, 0); armL.position.set(-0.25, 0.54, 0);
   upper.add(armR, armL);
 
   const ch = { root, body, legs, upper, head, armR, armL, wslot, weapon: null, wid: null, phase: 0, stance: 0, eq: { h: -1, v: -1, p: -1 }, aimPitch: 0, firing: 0, wRoot: null, throwT: 0 };
 
+  const ss = sanitizeLook(look)[3];
   ch.setEquip = (h, v, p) => {
     if (h !== ch.eq.h) {
       ch.eq.h = h; helmetSlot.clear();
-      if (h > 0) {
-        const m = HELM_MATS[h]();
-        const dome = new THREE.Mesh(new THREE.SphereGeometry(0.15, 14, 10, 0, Math.PI * 2, 0, Math.PI * (h === 1 ? 0.62 : 0.55)), m); dome.castShadow = true; dome.position.y = 0.01; helmetSlot.add(dome);
-        if (h === 1) { const visor = box(0.2, 0.06, 0.08, mat('vis', 0x111a24, { r: 0.1, m: 0.5 }), 0, 0.01, -0.12); helmetSlot.add(visor); }
-        if (h === 2) { const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.17, 0.17, 0.015, 14), m); brim.position.y = 0.0; helmetSlot.add(brim); helmetSlot.add(box(0.1, 0.02, 0.1, mat('hnet', 0x3f4a2a), 0, 0.15, 0)); }
-        if (h === 3) { helmetSlot.add(box(0.18, 0.1, 0.05, mat('h3v', 0x0b0c0e, { r: 0.2, m: 0.5 }), 0, -0.03, -0.13)); const rail = box(0.02, 0.02, 0.2, mat('h3r', 0x2c3036), 0.14, 0.04, -0.02); helmetSlot.add(rail); }
-      }
+      if (h > 0) { helmetSlot.add(gearGroup('helm', h)); helmetSlot.traverse((o) => { if (o.isMesh) o.castShadow = true; }); }
+      if (hairMesh) hairMesh.visible = h <= 0; // קסדה מכסה את השיער
     }
-    if (v !== ch.eq.v) {
-      ch.eq.v = v; vestSlot.clear();
-      if (v > 0) {
-        const m = VEST_MATS[v]();
-        vestSlot.add(box(0.46, 0.5, 0.29, m, 0, 0.32, 0));
-        const pm = mat('vp' + v, [0, 0x23262c, 0x151c2e, 0x57543a][v], { r: 0.8 });
-        for (const s of [-1, 0, 1]) vestSlot.add(box(0.11, 0.12, 0.05, pm, 0.13 * s, 0.17, -0.16));
-        if (v >= 2) vestSlot.add(box(0.3, 0.22, 0.04, mat('plate' + v, 0x2e3238, { r: 0.5, m: 0.3 }), 0, 0.42, -0.16));
-        if (v === 3) { for (const s of [-1, 1]) vestSlot.add(box(0.07, 0.09, 0.06, pm, 0.21 * s, 0.35, -0.12)); vestSlot.add(box(0.3, 0.09, 0.05, pm, 0, 0.58, 0.14)); }
-        vestSlot.add(box(0.14, 0.03, 0.3, m, 0.18, 0.58, 0)); vestSlot.add(box(0.14, 0.03, 0.3, m, -0.18, 0.58, 0));
-      }
-    }
-    if (p !== ch.eq.p) {
-      ch.eq.p = p; packSlot.clear();
+    const vc = v !== ch.eq.v, pc = p !== ch.eq.p;
+    if (vc) { vestSlot.clear(); if (v > 0) { vestSlot.add(gearGroup('vest', v, ss)); vestSlot.traverse((o) => { if (o.isMesh) o.castShadow = true; }); } }
+    if (vc || pc) { // התיק יושב על האפוד, לכן מורכב מחדש גם כשהאפוד משתנה
+      ch.eq.v = v; ch.eq.p = p; packSlot.clear();
       if (p > 0) {
-        const m = PACK_MATS[p]();
-        const sz = [0, [0.3, 0.36, 0.14], [0.34, 0.46, 0.2], [0.38, 0.58, 0.26]][p];
-        packSlot.add(box(sz[0], sz[1], sz[2], m, 0, 0.33 + (sz[1] - 0.36) * 0.1, 0.12 + sz[2] / 2));
-        packSlot.add(box(sz[0] * 0.8, sz[1] * 0.35, 0.06, mat('pp' + p, 0x24291c, { r: 0.9 }), 0, 0.22, 0.14 + sz[2] + 0.02));
-        if (p >= 2) for (const s of [-1, 1]) packSlot.add(box(0.07, 0.2, 0.08, m, (sz[0] / 2 + 0.03) * s, 0.28, 0.2));
-        if (p === 3) packSlot.add(box(sz[0] * 0.9, 0.12, 0.2, mat('pr', 0x6a5a3a), 0, 0.33 + sz[1] / 2 + 0.05, 0.28));
+        const pk = gearGroup('pack', p, ss), m = packMount(p, ss, v); pk.position.set(m[0], m[1], m[2]); packSlot.add(pk);
+        packSlot.add(packStrapGroup(p, ss));
+        packSlot.traverse((o) => { if (o.isMesh) o.castShadow = true; });
       }
     }
   };
@@ -197,6 +177,7 @@ export function buildCharacter(color) {
     if (wid) { const w = buildWeapon(wid); wslot.add(w); ch.weapon = w; }
   };
   ch.setEquip(0, 0, 0); ch.setWeapon(null);
+  root.traverse((o) => { if (o.isMesh) o.castShadow = true; });
   ch.hasWeapon = () => !!(ch.weapon || ch.grenade);
 
   // מצב: speed אופקי, stance 0/1/2, pitch של מבט, מצב (0 קרקע, 2 צניחה, 3 מצנח), firing recoil

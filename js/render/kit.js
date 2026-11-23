@@ -49,6 +49,19 @@ export function superRing(cx, cy, z, w, h, n = 2, N = 32) {
   return out;
 }
 
+// טבעת סופר-אליפסה אופקית (ציר Y), נגד כיוון השעון כשמסתכלים מלמעלה; n=2 אליפסה, n גדול = מלבן מעוגל
+export function ringY(cx, cz, y, w, d, n = 2.4, N = 26) {
+  const out = [], e = 2 / n;
+  for (let k = 0; k < N; k++) {
+    const t = (k / N) * TAU, c = Math.cos(t), s = Math.sin(t);
+    out.push([cx + (w / 2) * Math.sign(c) * Math.pow(Math.abs(c), e), y, cz - (d / 2) * Math.sign(s) * Math.pow(Math.abs(s), e)]);
+  }
+  return out;
+}
+
+export const shade = (h, f) => (Math.min(255, Math.round(((h >> 16) & 255) * f)) << 16) | (Math.min(255, Math.round(((h >> 8) & 255) * f)) << 8) | Math.min(255, Math.round((h & 255) * f));
+export const mixc = (a, b, t) => { const c = (s) => Math.round(((a >> s) & 255) * (1 - t) + ((b >> s) & 255) * t); return (c(16) << 16) | (c(8) << 8) | c(0); };
+
 // פרופיל כנף סימטרי (NACA 4 ספרות): עובי יחסי t, מקום יחסי u בין 0 ל-1 -> חצי עובי יחסי למיתר
 export const naca = (u, t) => 5 * t * (0.2969 * Math.sqrt(u) - 0.126 * u - 0.3516 * u * u + 0.2843 * u * u * u - 0.1036 * u * u * u * u);
 
@@ -141,8 +154,9 @@ export class Builder {
         if (dp >= 0) p.idx.push(base, base + 1, base + 2); else p.idx.push(base, base + 2, base + 1);
       }
     };
-    if (o.capStart) cap(rings[0], 1);
-    if (o.capEnd) cap(rings[S - 1], 1);
+    // כיוון הרינג מול כיוון ההתקדמות קובע לאן פונה המכסה; ב-flip הכיוון הפוך
+    if (o.capStart) cap(rings[0], flip ? 1 : -1);
+    if (o.capEnd) cap(rings[S - 1], flip ? -1 : 1);
     return this;
   }
 

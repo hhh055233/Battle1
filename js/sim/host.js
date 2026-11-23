@@ -6,6 +6,7 @@ import { newBody, stepWalk, packSnapshot, unpackState } from './player.js';
 import { rayPlayer, calcDamage, bodyCenter } from './hit.js';
 import { airdropContents } from './loot.js';
 import { Bot } from './bots.js';
+import { sanitizeLook, randomLook } from './look.js';
 import { mulberry32, rand, hash2 } from './util.js';
 import { HELMET, VEST, PACK, MEDS, THROWS, WEAPONS, PLANE, ZONE_T0, MAX_PLAYERS, COLORS, itemInfo } from './data.js';
 
@@ -15,7 +16,7 @@ const BOT_NAMES = ['Ace', 'Viper', 'Rogue', 'Nova', 'Titan', 'Ghost', 'Blaze', '
 
 export class Host {
   // io: {all(msg, exceptIdx), one(idx, msg), bin(idx, buf)}
-  constructor(io, hostName = 'Host') {
+  constructor(io, hostName = 'Host', hostLook = null) {
     this.io = io;
     this.settings = { ...DEFAULT_SETTINGS };
     this.state = 'lobby'; // lobby | loading | playing | ended
@@ -31,15 +32,15 @@ export class Host {
     this.acc = { snap: 0, hp: 0, sec: 0 };
     this.snapTick = 0;
     this.nextLootId = 0;
-    this.hostIdx = this.addHuman(hostName, true);
+    this.hostIdx = this.addHuman(hostName, true, hostLook);
   }
 
   // ---------- חדר ----------
-  addHuman(name, silent = false) {
+  addHuman(name, silent = false, lk = null) {
     if (this.state !== 'lobby') return -1;
     if (this.humans().length >= this.settings.maxPlayers) return -1;
     let idx = 0; while (this.players.has(idx)) idx++;
-    const P = this.makePlayer(idx, String(name || 'Player').slice(0, 14), false);
+    const P = this.makePlayer(idx, String(name || 'Player').slice(0, 14), false, lk);
     this.players.set(idx, P);
     if (!silent) this.broadcastLobby();
     return idx;
@@ -52,9 +53,9 @@ export class Host {
     P.gone = true;
   }
   humans() { return [...this.players.values()].filter((p) => !p.bot && !p.gone); }
-  makePlayer(idx, name, bot) {
+  makePlayer(idx, name, bot, lk) {
     return {
-      idx, n: name, c: COLORS[idx % COLORS.length], bot, alive: true, left: false, gone: false, ready: false,
+      idx, n: name, c: COLORS[idx % COLORS.length], lk: bot ? randomLook() : sanitizeLook(lk), bot, alive: true, left: false, gone: false, ready: false,
       hp: 100, boost: 0, helm: { l: 0, d: 0 }, vest: { l: 0, d: 0 }, pack: 0,
       x: 0, y: 300, z: 0, yaw: 0, pitch: 0, stance: 0, fl: 0, wid: null, pst: 1,
       kills: 0, place: 0, dirty: true, lastSnap: 0, dmgDealt: 0, survived: 0,
@@ -63,7 +64,7 @@ export class Host {
   lobbyInfo() {
     return {
       t: 'lobby', s: this.settings,
-      players: [...this.players.values()].filter((p) => !p.gone).map((p) => ({ i: p.idx, n: p.n, c: p.c, h: p.idx === this.hostIdx })),
+      players: [...this.players.values()].filter((p) => !p.gone).map((p) => ({ i: p.idx, n: p.n, c: p.c, k: p.lk, h: p.idx === this.hostIdx })),
     };
   }
   broadcastLobby() { this.io.all(this.lobbyInfo()); }
@@ -82,7 +83,7 @@ export class Host {
 
   resetToLobby() {
     for (const [i, p] of [...this.players]) { if (p.bot || p.gone) this.players.delete(i); }
-    for (const p of this.players.values()) Object.assign(p, this.makePlayer(p.idx, p.n, false));
+    for (const p of this.players.values()) Object.assign(p, this.makePlayer(p.idx, p.n, false, p.lk));
     this.grenades = []; this.fires = []; this.drops = []; this.t = 0; this.noHumanT = 0; this.state = 'lobby'; this.world = null; this.tl = null;
     this.broadcastLobby();
   }
@@ -108,7 +109,7 @@ export class Host {
     this.loadT = 0;
     this.io.all({
       t: 'start', seed: this.seed, s: this.settings,
-      players: [...this.players.values()].map((p) => ({ i: p.idx, n: p.n, c: p.c, b: p.bot ? 1 : 0 })),
+      players: [...this.players.values()].map((p) => ({ i: p.idx, n: p.n, c: p.c, k: p.lk, b: p.bot ? 1 : 0 })),
     });
   }
 
@@ -245,6 +246,7 @@ export class Host {
     }
     switch (m.t) {
       case 'ready': P.ready = true; break;
+      case 'look': if (this.state === 'lobby') { P.lk = sanitizeLook(m.lk); this.broadcastLobby(); } break;
       case 'hit': this.onHit(P, m); break;
       case 'fire': this.io.all({ t: 'fire', i: idx, o: m.o, e: m.e, w: m.w, k: m.k }, idx); break;
       case 'pick': this.onPick(P, m); break;

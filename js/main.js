@@ -5,6 +5,8 @@ import { openRoom, joinRoom, randomCode } from './net.js';
 import { connectServer, normServerUrl } from './netws.js';
 import { SERVER_URL as CFG_SERVER } from '../config.js';
 import { Game } from './game.js';
+import { sanitizeLook, SHIRT_COLORS } from './sim/look.js';
+import { openWardrobe } from './wardrobe.js';
 import { HUD } from './hud.js';
 import * as A from './audio.js';
 
@@ -32,7 +34,7 @@ function makeRenderer() {
 }
 
 // ---------- מצב ----------
-const S = { host: null, net: null, game: null, idx: -1, isHost: false, code: '', name: '', lobby: null, players: [], ticker: null, solo: false, srv: null, mgr: false };
+const S = { look: sanitizeLook(store.get('look', null)), host: null, net: null, game: null, idx: -1, isHost: false, code: '', name: '', lobby: null, players: [], ticker: null, solo: false, srv: null, mgr: false };
 // שרת ייעודי (אופציונלי): ?server=wss://... בקישור (נשמר בדפדפן), אחרת config.js. ?server=off מבטל.
 const SRV = (() => {
   const qs = new URLSearchParams(location.search).get('server');
@@ -72,7 +74,7 @@ function createHost(name) {
     one(idx, m) { deliver(idx, m); },
     bin(idx, buf) { deliver(idx, buf); },
   };
-  S.host = new Host(io, name);
+  S.host = new Host(io, name, S.look);
   S.idx = S.host.hostIdx; S.isHost = true;
   let last = performance.now();
   S.ticker = startTicker(() => {
@@ -104,7 +106,7 @@ function route(m) {
 
 // ---------- יצירת חדר / הצטרפות ----------
 async function enterServerRoom(req) {
-  const c = await connectServer(SRV.url, { ...req, n: S.name }, { onData: (d) => route(d), onClose: () => closedByHost() });
+  const c = await connectServer(SRV.url, { ...req, n: S.name, lk: S.look }, { onData: (d) => route(d), onClose: () => closedByHost() });
   S.srv = c; S.net = { send: (_, m) => c.send(m), raw: c, close: c.close }; S.clientSend = (m) => c.send(m);
   S.idx = c.idx; S.isHost = false; S.mgr = c.mgr; S.code = c.code; S.solo = false;
   msg('menu-msg', '');
@@ -124,7 +126,7 @@ async function createRoom() {
   createHost(S.name);
   let code = randomCode(), tries = 0, api = null;
   while (!api && tries++ < 6) {
-    try { api = await openRoom(code, window.Peer, { onJoin: (n) => { const i = S.host.addHuman(n); if (i >= 0) setTimeout(() => { if (S.host) S.host.io.one(i, S.host.lobbyInfo()); }, 80); return i; }, onMessage: (idx, d) => S.host.onMessage(idx, d), onLeave: (idx) => S.host.removeHuman(idx), onError: (e) => console.warn(e), joinError: () => (S.host.state !== 'lobby' ? 'המשחק כבר התחיל' : 'החדר מלא') }); }
+    try { api = await openRoom(code, window.Peer, { onJoin: (n, _c, lk) => { const i = S.host.addHuman(n, false, lk); if (i >= 0) setTimeout(() => { if (S.host) S.host.io.one(i, S.host.lobbyInfo()); }, 80); return i; }, onMessage: (idx, d) => S.host.onMessage(idx, d), onLeave: (idx) => S.host.removeHuman(idx), onError: (e) => console.warn(e), joinError: () => (S.host.state !== 'lobby' ? 'המשחק כבר התחיל' : 'החדר מלא') }); }
     catch (e) { if (e && e.type === 'unavailable-id') code = randomCode(); else { msg('menu-msg', 'שגיאת חיבור לשרת האיתות: ' + (e && e.type ? e.type : e)); stopHost(); return; } }
   }
   if (!api) { msg('menu-msg', 'לא הצלחנו ליצור חדר, נסו שוב'); stopHost(); return; }
@@ -156,7 +158,7 @@ async function joinByCode() {
     const c = await joinRoom(code, S.name, window.Peer, {
       onData: (d) => route(d),
       onClose: () => closedByHost(),
-    });
+    }, S.look);
     S.net = { send: (_, m) => c.send(m), raw: c, close: c.close }; S.idx = c.idx; S.isHost = false; S.code = code; S.clientSend = (m) => c.send(m);
     msg('menu-msg', '');
     openLobby();
@@ -192,7 +194,7 @@ function renderLobby() {
   if (S.srv) { const me = L.players.find((p) => p.i === S.idx); const mg = !!(me && me.h); if (mg !== S.mgr) { S.mgr = mg; openLobby(); } }
   const list = $('pl-list'); list.innerHTML = '';
   for (const p of L.players) {
-    const li = document.createElement('li'); const dot = document.createElement('i'); dot.style.background = '#' + p.c.toString(16).padStart(6, '0');
+    const li = document.createElement('li'); const dot = document.createElement('i'); dot.style.background = '#' + (p.k ? SHIRT_COLORS[p.k[4]] : p.c).toString(16).padStart(6, '0');
     const nm = document.createElement('span'); nm.textContent = p.n + (p.i === S.idx ? ' (אתה)' : '');
     li.appendChild(dot); li.appendChild(nm); if (p.h) { const c = document.createElement('span'); c.className = 'crown'; c.textContent = ' 👑'; li.appendChild(c); }
     list.appendChild(li);
@@ -239,6 +241,15 @@ function leaveGame(toMenu) {
 }
 
 // ---------- כפתורים ----------
+// התאמת דמות: נשמר בדפדפן, ובלובי נשלח גם לשאר השחקנים
+function pushLook(lk) {
+  S.look = lk; store.set('look', lk);
+  if (S.game) return;
+  if (S.srv) S.srv.ctl({ t: 'look', lk });
+  else if (S.isHost && S.host) S.host.onMessage(S.idx, { t: 'look', lk });
+  else if (S.clientSend) S.clientSend({ t: 'look', lk });
+}
+for (const id of ['btn-wardrobe', 'btn-wardrobe2']) $(id).onclick = () => openWardrobe(S.look, pushLook);
 $('btn-create').onclick = createRoom;
 $('btn-solo').onclick = soloGame;
 $('btn-join').onclick = joinByCode;

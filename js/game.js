@@ -22,7 +22,7 @@ export class Game {
     Object.assign(this, o);
     this.prefs = o.prefs;
     this.pl = new Map();
-    for (const p of o.players) this.pl.set(p.i, { idx: p.i, n: p.n, c: p.c, bot: !!p.b, alive: true, ch: null, buf: [], lastSeen: 0, px: 0, pz: 0, sp: 0, stepAcc: 0, deadAt: 0, vis: false });
+    for (const p of o.players) this.pl.set(p.i, { idx: p.i, n: p.n, c: p.c, lk: p.k, bot: !!p.b, alive: true, ch: null, buf: [], lastSeen: 0, px: 0, pz: 0, sp: 0, stepAcc: 0, deadAt: 0, vis: false });
     this.keys = new Set(); this.mouse = { l: false, r: false }; this.running = false; this.started = false;
     this.mtBase = 0; this.mtStamp = performance.now(); this.aliveN = o.players.length;
     this.grenades = new Map(); this.drops = new Map(); this.lootMeshes = new Map(); this.protoCache = new Map();
@@ -49,7 +49,7 @@ export class Game {
     this.planeMesh = buildPlane(); this.scene.add(this.planeMesh);
     // דמות עצמית
     const mine = this.pl.get(this.idx);
-    this.myChar = buildCharacter(mine ? mine.c : 0xd9534f); this.scene.add(this.myChar.root); this.myChar.root.visible = false;
+    this.myChar = buildCharacter(mine ? mine.c : 0xd9534f, mine && mine.lk); this.scene.add(this.myChar.root); this.myChar.root.visible = false;
     this.myChute = buildParachute(); this.scene.add(this.myChute); this.myChute.visible = false;
     // viewmodel
     this.vScene = new THREE.Scene(); this.vCam = new THREE.PerspectiveCamera(60, innerWidth / innerHeight, 0.02, 10);
@@ -612,7 +612,7 @@ export class Game {
     this.net = (this.net || 0) + 1;
   }
   makeRemote(p) {
-    p.ch = buildCharacter(p.c); this.scene.add(p.ch.root);
+    p.ch = buildCharacter(p.c, p.lk); this.scene.add(p.ch.root);
     p.chute = buildParachute(); p.chute.visible = false; this.scene.add(p.chute);
     p.ch.root.visible = false;
   }

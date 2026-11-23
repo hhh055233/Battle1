@@ -157,3 +157,23 @@ select option { background: #151b23; }
 @keyframes fadein { from { opacity: 0; transform: translateX(-8px); } to { opacity: 1; } }
 @keyframes fadeout { to { opacity: 0; } }
 @keyframes pop { from { transform: translateX(-50%) scale(.7); opacity: 0; } to { transform: translateX(-50%) scale(1); opacity: 1; } }
+
+/* ---------- התאמת דמות ---------- */
+.wd-btn { width: 100%; }
+.wardrobe-panel { width: min(900px, 96vw); }
+.wd-grid { display: grid; grid-template-columns: 300px 1fr; gap: 18px; margin-bottom: 6px; }
+.wd-view { text-align: center; }
+.wd-view canvas { width: 300px; height: 440px; max-width: 100%; border-radius: 12px; background: radial-gradient(ellipse at 50% 35%, #34475c, #121a24 75%); border: 1px solid var(--line); touch-action: none; cursor: grab; display: block; margin: 0 auto 6px; }
+.wd-opts { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-content: start; max-height: 470px; overflow: auto; }
+.wd-grp { background: rgba(255, 255, 255, .04); border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+.wd-sec { margin-bottom: 8px; }
+.wd-t { font-size: 12px; color: var(--dim); margin-bottom: 6px; }
+.wd-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { background: rgba(255, 255, 255, .08); color: var(--txt); border: 1px solid var(--line); border-radius: 999px; padding: 5px 11px; font-size: 13px; cursor: pointer; font-family: inherit; }
+.chip:hover { background: rgba(255, 255, 255, .16); }
+.chip.on { background: var(--acc); color: #1b1200; border-color: var(--acc2); font-weight: 700; }
+.sw { width: 26px; height: 26px; border-radius: 50%; border: 2px solid rgba(255, 255, 255, .25); cursor: pointer; padding: 0; }
+.sw:hover { transform: scale(1.12); }
+.sw.on { border-color: #fff; box-shadow: 0 0 0 2px var(--acc); }
+#wardrobe .row { margin-top: 12px; }
+@media (max-width: 760px) { .wd-grid { grid-template-columns: 1fr; } .wd-opts { grid-template-columns: 1fr; max-height: none; } .wd-view canvas { height: 360px; } }

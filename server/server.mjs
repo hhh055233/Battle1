@@ -17,6 +17,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { Host } from '../js/sim/host.js';
+import { sanitizeLook } from '../js/sim/look.js';
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const PORT = Number(process.env.PORT) || 8080;
@@ -52,7 +53,7 @@ function refuse(ws, why, nf = false) {
 
 // ---------- חדר ----------
 class Room {
-  constructor(code, creatorName) {
+  constructor(code, creatorName, creatorLook) {
     this.code = code;
     this.socks = new Map(); // idx -> ws
     this.created = Date.now();
@@ -63,7 +64,7 @@ class Room {
       one: (idx, m) => sendStr(this.socks.get(idx), JSON.stringify(m)),
       bin: (idx, buf) => sendBin(this.socks.get(idx), buf),
     };
-    this.host = new Host(io, creatorName);
+    this.host = new Host(io, creatorName, creatorLook);
   }
 
   get humans() { return this.socks.size; }
@@ -78,9 +79,9 @@ class Room {
     if (H.state === 'lobby') H.io.one(idx, H.lobbyInfo());
   }
 
-  join(ws, name) {
+  join(ws, name, lk) {
     const H = this.host;
-    const idx = H.addHuman(name); // משדר את הלובי המעודכן לשאר
+    const idx = H.addHuman(name, false, lk); // משדר את הלובי המעודכן לשאר
     if (idx < 0) { refuse(ws, H.state !== 'lobby' ? 'המשחק כבר התחיל' : 'החדר מלא'); return; }
     this.attach(ws, idx);
     log('room', this.code, 'join', name, 'idx', idx, 'humans', this.humans);
@@ -137,7 +138,7 @@ function handleHello(ws, m) {
   const name = String(m.n || '').replace(/[<>&"']/g, '').trim().slice(0, 14) || 'Player' + Math.floor(100 + Math.random() * 900);
   if (m.t === 'create') {
     if (rooms.size >= MAX_ROOMS) { refuse(ws, 'השרת עמוס כרגע, נסו שוב בעוד כמה דקות'); return; }
-    const room = new Room(randomCode(), name);
+    const room = new Room(randomCode(), name, sanitizeLook(m.lk));
     rooms.set(room.code, room);
     room.attach(ws, room.host.hostIdx);
     log('room', room.code, 'created by', name, '- rooms:', rooms.size);
@@ -145,7 +146,7 @@ function handleHello(ws, m) {
   }
   const room = rooms.get(String(m.c || '').toUpperCase().trim());
   if (!room) { refuse(ws, 'החדר לא נמצא', true); return; }
-  room.join(ws, name);
+  room.join(ws, name, sanitizeLook(m.lk));
 }
 
 // ---------- HTTP: בריאות + (אופציונלי) קבצי האתר ----------

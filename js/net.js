@@ -25,7 +25,7 @@ export function openRoom(code, Peer, handlers) {
       conn.on('open', () => { /* ממתינים ל-join */ });
       conn.on('data', (d) => {
         if (d && d.t === 'join' && !byConn.has(conn)) {
-          const idx = handlers.onJoin(String(d.n || 'Player').slice(0, 14), conn);
+          const idx = handlers.onJoin(String(d.n || 'Player').slice(0, 14), conn, d.lk);
           if (idx < 0) { conn.send({ t: 'reject', why: handlers.joinError ? handlers.joinError() : 'החדר מלא או שהמשחק כבר התחיל' }); setTimeout(() => conn.close(), 400); return; }
           conns.set(idx, conn); byConn.set(conn, idx);
           conn.send({ t: 'welcome', i: idx, code });
@@ -48,7 +48,7 @@ export function openRoom(code, Peer, handlers) {
 }
 
 // ----- צד הלקוח -----
-export function joinRoom(code, name, Peer, handlers) {
+export function joinRoom(code, name, Peer, handlers, lk = null) {
   return new Promise((resolve, reject) => {
     const peer = new Peer(undefined, { debug: 0, config: { iceServers } });
     let done = false, timer = null;
@@ -57,7 +57,7 @@ export function joinRoom(code, name, Peer, handlers) {
     peer.on('error', (e) => fail(e));
     peer.on('open', () => {
       const conn = peer.connect(PREFIX + code, { reliable: true, serialization: 'binary' });
-      conn.on('open', () => conn.send({ t: 'join', n: name }));
+      conn.on('open', () => conn.send({ t: 'join', n: name, lk }));
       conn.on('data', (d) => {
         if (d && d.t === 'welcome' && !done) { done = true; clearTimeout(timer); resolve({ conn, peer, idx: d.i, send: (m) => { if (conn.open) conn.send(m); }, close: () => { try { peer.destroy(); } catch (e) { /* ignore */ } } }); return; }
         if (d && d.t === 'reject' && !done) { done = true; clearTimeout(timer); try { peer.destroy(); } catch (e2) { /* ignore */ } reject(new Error(d.why || 'rejected')); return; }

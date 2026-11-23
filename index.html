@@ -20,6 +20,7 @@
     <label class="field">השם שלך
       <input id="name" maxlength="14" placeholder="שם שחקן" autocomplete="off">
     </label>
+    <div class="row"><button id="btn-wardrobe" class="btn wd-btn">👕 התאמת דמות (שיער · עור · חולצה · מכנסיים)</button></div>
     <div class="row">
       <button id="btn-create" class="btn primary">צור חדר</button>
       <button id="btn-solo" class="btn">משחק מהיר נגד בוטים</button>
@@ -54,6 +55,7 @@
         <div id="room-code" class="code">-----</div>
       </div>
       <div class="lobby-actions">
+        <button id="btn-wardrobe2" class="btn small">👕 הדמות שלי</button>
         <button id="btn-copy" class="btn small">העתק קישור</button>
         <button id="btn-leave" class="btn small danger">יציאה</button>
       </div>
@@ -86,6 +88,23 @@
     </div>
     <button id="btn-start" class="btn primary big">התחל משחק</button>
     <p id="lobby-msg" class="msg"></p>
+  </div>
+</section>
+
+<!-- ===== התאמת דמות ===== -->
+<section id="wardrobe" class="screen overlay hidden">
+  <div class="panel wardrobe-panel">
+    <h2>התאמת דמות</h2>
+    <div class="wd-grid">
+      <div class="wd-view"><canvas id="wd-canvas"></canvas><div class="tiny">גררו כדי לסובב</div></div>
+      <div class="wd-opts" id="wd-opts"></div>
+    </div>
+    <div class="row">
+      <button id="wd-random" class="btn">🎲 אקראי</button>
+      <button id="wd-reset" class="btn">איפוס</button>
+      <button id="wd-gear" class="btn">ציוד: ללא</button>
+      <button id="wd-close" class="btn primary">שמור וסגור</button>
+    </div>
   </div>
 </section>
 
