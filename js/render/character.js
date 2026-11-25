@@ -238,25 +238,26 @@ function shinMesh(L) {
     },
   });
   b.add(SPH(), { s: 0.063, p: [0, 0, 0], c: shorts ? L.skin : P });
-  // נעל ספורט: סוליה + גוף + לשונית + פס צבע
-  const sole = [[-0.22, 0.062, 0.022, -0.438], [-0.19, 0.088, 0.03, -0.435], [-0.1, 0.1, 0.032, -0.434], [0.0, 0.097, 0.032, -0.434], [0.06, 0.088, 0.03, -0.435], [0.085, 0.07, 0.026, -0.437]];
-  b.loft(sole.map(([z, w, h, cy]) => ringZ(0, cy, z, w, h, 3.2, 16)), { capStart: true, capEnd: true, c: 0xe8e7e2 });
+  // נעל ספורט (רשת נפרדת כדי שהקרסול יוכל להישאר שטוח על הקרקע): סוליה + גוף + לשונית + פס צבע
+  const fb = new Builder();
+  const sole =[[-0.22, 0.062, 0.022, -0.438], [-0.19, 0.088, 0.03, -0.435], [-0.1, 0.1, 0.032, -0.434], [0.0, 0.097, 0.032, -0.434], [0.06, 0.088, 0.03, -0.435], [0.085, 0.07, 0.026, -0.437]];
+  fb.loft(sole.map(([z, w, h, cy]) => ringZ(0, cy, z, w, h, 3.2, 16)), { capStart: true, capEnd: true, c: 0xe8e7e2 });
   const up = [[-0.215, 0.06, 0.04, -0.412], [-0.15, 0.092, 0.066, -0.402], [-0.08, 0.098, 0.088, -0.39], [-0.02, 0.095, 0.108, -0.372], [0.04, 0.09, 0.1, -0.376], [0.085, 0.072, 0.082, -0.386]];
-  b.loft(up.map(([z, w, h, cy]) => ringZ(0, cy, z, w, h, 2.6, 18)), {
+  fb.loft(up.map(([z, w, h, cy]) => ringZ(0, cy, z, w, h, 2.6, 18)), {
     capStart: true, capEnd: true,
     color: (i, j, cx, cy, cz, nx) => (Math.abs(nx) > 0.72 && cz > -0.12 && cz < 0.03 && cy > -0.4 && cy < -0.38 ? acc : 0xf4f4f1),
   });
-  b.add(BOX(), { s: [0.062, 0.012, 0.075], p: [0, -0.322, -0.06], r: [0.35, 0, 0], c: 0xdfe1e4 }); // שרוכים
-  return b.build({ m: CHAR_MAT() }).children[0];
+  fb.add(BOX(), { s: [0.062, 0.012, 0.075], p: [0, -0.322, -0.06], r: [0.35, 0, 0], c: 0xdfe1e4 }); // שרוכים
+  return { shin: b.build({ m: CHAR_MAT() }).children[0], foot: fb.build({ m: CHAR_MAT() }).children[0] };
 }
 
 // מחזיר את כל חלקי הגוף כ-Mesh נפרדים (הרכבה בשלד נעשית ב-models.js)
 export function makeBody(look) {
   const L = resolveLook(look);
-  const thigh = thighMesh(L), shin = shinMesh(L);
+  const thigh = thighMesh(L), { shin, foot } = shinMesh(L);
   return {
     L, torso: torsoMesh(L), head: headMesh(L), hair: hairMesh(L),
-    armU: [upperArmMesh(L), upperArmMesh(L)], armF: [foreArmMesh(L, 1), foreArmMesh(L, -1)], thigh, shin,
+    armU: [upperArmMesh(L), upperArmMesh(L)], armF: [foreArmMesh(L, 1), foreArmMesh(L, -1)], thigh, shin, foot,
     shirtColor: L.shirt,
   };
 }

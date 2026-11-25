@@ -943,18 +943,19 @@ export class Game {
   updateViewmodel(dt, fpp, zoom) {
     const M = this.me, W = M.cur >= 0 && M.cur < 2 ? M.weapons[M.cur] : null;
     const id = M.cur === 2 ? 'g:' + M.throwSel : W ? W.id : 'fist';
-    if (id !== this.vmWid) {
-      this.vmWid = id; this.vm.clear(); this.vmW = null;
+    const vkey = M.cur !== 2 && W ? id + '|' + (W.scope || '') : id; // כוונת מורכבת על הנשק משנה את הדגם
+    if (vkey !== this.vmWid) {
+      this.vmWid = vkey; this.vm.clear(); this.vmW = null;
       const sleeve = new THREE.MeshStandardMaterial({ color: this.pl.get(this.idx) ? this.pl.get(this.idx).c : 0x555555, roughness: 0.9 }), glove = new THREE.MeshStandardMaterial({ color: 0x1f2124, roughness: 0.9 });
       const arm = (x, y, z, rz, rx, ry) => { const g = new THREE.Group(); const a = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.075, 0.5), sleeve); a.position.z = 0.25; g.add(a); const h = new THREE.Mesh(new THREE.BoxGeometry(0.085, 0.085, 0.11), glove); h.position.z = -0.02; g.add(h); g.position.set(x, y, z); g.rotation.set(rx, ry, rz); return g; };
       if (id === 'fist') { this.vm.add(arm(0.2, -0.22, -0.35, 0, 0.1, 0.1), arm(-0.2, -0.22, -0.35, 0, 0.1, -0.1)); this.vmW = null; }
       else if (id.startsWith('g:')) { const g = buildGrenade(id.slice(2)); g.scale.setScalar(2.2); g.position.set(0.16, -0.17, -0.38); this.vm.add(g, arm(0.2, -0.26, -0.18, 0, 0.3, 0)); this.vmW = g; }
       else {
-        const wp = buildWeapon(id); wp.scale.setScalar(1.0); this.vm.add(wp); this.vmW = wp; wp.userData.baseRot = 0;
-        const U = wp.userData;
+        const wp = buildWeapon(id, W && W.scope || undefined); wp.scale.setScalar(1.0); this.vm.add(wp); this.vmW = wp; wp.userData.baseRot = 0;
+        const U = wp.userData; // grip/fore = מרכזי האגרופים על האחיזה ועל הידית הקדמית
         const a1 = arm(0.0, 0, 0, 0, 0, 0), a2 = arm(0, 0, 0, 0, 0, 0);
-        a1.position.set(U.grip.x + 0.03, U.grip.y - 0.03, U.grip.z + 0.02); a1.rotation.set(-0.05, 0.08, 0);
-        a2.position.set(U.fore.x - 0.04, U.fore.y - 0.02, U.fore.z); a2.rotation.set(0.0, -0.18, 0);
+        a1.position.set(U.grip.x + 0.012, U.grip.y - 0.004, U.grip.z + 0.025); a1.rotation.set(-0.05, 0.08, 0);
+        a2.position.set(U.fore.x - 0.026, U.fore.y - 0.012, U.fore.z); a2.rotation.set(0.0, -0.18, 0);
         a1.scale.z = 0.9; a2.scale.z = 1.0; wp.add(a1, a2);
       }
     }
@@ -962,7 +963,8 @@ export class Game {
     if (!fpp || !this.vmW && id !== 'fist') { return; }
     this.vmKick = Math.max(0, this.vmKick - dt * 9); this.vmSwitch = Math.max(0, this.vmSwitch - dt * 3.2);
     const ads = M.ads, bob = Math.hypot(M.body.vx, M.body.vz) > 1 ? Math.sin(this.camBob * 2) : 0, spr = this.sprinting ? 1 : 0;
-    const ux = lerp(0.2, 0.0, ads) + bob * 0.006 * (1 - ads), uy = lerp(-0.2, W && SCOPES[W.scope || 'x'] && W.scope ? -0.105 : -0.115, ads) + Math.abs(bob) * 0.006 * (1 - ads) - this.vmSwitch * 0.25 - (M.reload > 0 ? 0.12 : 0), uz = lerp(-0.38, -0.3, ads) + this.vmKick * 0.06;
+    const sy = this.vmW && this.vmW.userData && this.vmW.userData.sightY || 0.108; // קו הכוונה (של הכוונת המורכבת אם יש) נושא את הגובה בהסתכלות דרך הכוונת
+    const ux = lerp(0.2, 0.0, ads) + bob * 0.006 * (1 - ads), uy = lerp(-0.2, -sy, ads) + Math.abs(bob) * 0.006 * (1 - ads) - this.vmSwitch * 0.25 - (M.reload > 0 ? 0.12 : 0), uz = lerp(-0.38, -0.3, ads) + this.vmKick * 0.06;
     const g = this.vm;
     g.position.set(ux, uy, uz);
     g.rotation.set(this.vmKick * 0.08 - spr * 0.5 + (M.reload > 0 ? -0.45 : 0), spr * 0.6, spr * -0.25 + (M.reload > 0 ? 0.4 : 0));
