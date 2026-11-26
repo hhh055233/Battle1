@@ -17,7 +17,7 @@ const FRONT = Math.PI * 1.5;
 const hash = (i) => { const h = Math.sin(i * 127.1 + 311.7) * 43758.5453; return h - Math.floor(h); };
 
 // פס/רצועה בין שתי נקודות (קופסה מיושרת לקטע)
-function seg(b, p0, p1, w, t, c, key) {
+export function seg(b, p0, p1, w, t, c, key) {
   const dx = p1[0] - p0[0], dy = p1[1] - p0[1], dz = p1[2] - p0[2], L = Math.hypot(dx, dy, dz) || 1e-6, ez = [dx / L, dy / L, dz / L];
   let ex = [ez[2], 0, -ez[0]]; const lx = Math.hypot(ex[0], ex[1], ex[2]); if (lx < 1e-4) ex = [1, 0, 0]; else ex = ex.map((v) => v / lx);
   const ey = [ez[1] * ex[2] - ez[2] * ex[1], ez[2] * ex[0] - ez[0] * ex[2], ez[0] * ex[1] - ez[1] * ex[0]];

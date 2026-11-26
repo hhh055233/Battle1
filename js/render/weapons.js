@@ -12,7 +12,7 @@ const CYLG = (r0, r1, seg = 14, open = false) => (U[`c${r0}_${r1}_${seg}_${open}
 const K = { steel: 0x9aa0a8, gun: 0x5a5f67, blk: 0x25272b, poly: 0x2d2f33, wood: 0x8a5a30, woodD: 0x68421f, tan: 0xb9a171, olive: 0x5b6c44, silver: 0xc6cbd1, brass: 0xd6a845, rubber: 0x18191b, glass: 0x1d3a4a, red: 0xff2a1a };
 
 // הבהרת צבעים כהים: בלי מפת סביבה גוף הנשק השחור נראה כמעט שחור לגמרי; מרימים את הכהים (גמא) כך שהצורה נשארת קריאה
-const lift = (h) => {
+export const lift = (h) => {
   const r = (h >> 16) & 255, g = (h >> 8) & 255, bl = h & 255, l = 0.299 * r + 0.587 * g + 0.114 * bl;
   if (l >= 165) return h;
   const mx = Math.max(r, g, bl), mn = Math.min(r, g, bl), sat = mx ? (mx - mn) / mx : 0;
@@ -93,13 +93,15 @@ const FRAME = (b, w, h, z, y, t, c) => { // מסגרת מלבנית פתוחה (
   BX(b, w, t, 0.012, 0, y + h / 2 - t / 2, z, c, 'x'); BX(b, w, t, 0.012, 0, y - h / 2 + t / 2, z, c, 'x');
   BX(b, t, h, 0.012, -w / 2 + t / 2, y, z, c, 'x'); BX(b, t, h, 0.012, w / 2 - t / 2, y, z, c, 'x');
 };
-function optic(b, id, zc, railY) {
+// lens=true: מוסיף עדשות/זכוכית (לפריט על הקרקע); על הנשק עצמו הכוונת נשארת פתוחה כדי שאפשר יהיה להסתכל דרכה
+function optic(b, id, zc, railY, lens) {
   const c = 0x1b1d21;
   if (id === 'red') { // כוונת נקודה אדומה: בסיס + מסגרת פתוחה + נקודה
     BX(b, 0.03, 0.012, 0.062, 0, railY + 0.006, zc, c, 'x');
     FRAME(b, 0.034, 0.034, zc + 0.022, railY + 0.03, 0.005, c); FRAME(b, 0.034, 0.034, zc - 0.022, railY + 0.03, 0.005, c);
     BX(b, 0.034, 0.006, 0.058, 0, railY + 0.049, zc, c, 'x');
     SP(b, 0.0022, 0, railY + 0.03, zc - 0.02, K.red, 'l');
+    if (lens) BX(b, 0.026, 0.026, 0.003, 0, railY + 0.03, zc - 0.022, 0x78b8ff, 'g');
     return railY + 0.03;
   }
   const r = id === 'x2' ? 0.018 : id === 'x4' ? 0.022 : 0.027, len = id === 'x2' ? 0.1 : id === 'x4' ? 0.17 : 0.27, y = railY + r + 0.012, z0 = zc - len / 2, z1 = zc + len / 2;
@@ -109,7 +111,29 @@ function optic(b, id, zc, railY) {
   for (const zz of [z0 + len * 0.22, z1 - len * 0.22]) { BX(b, 0.02, 0.022, 0.014, 0, railY + 0.011, zz, c, 'x'); b.add(CYLG(r * 1.12, r * 1.12, 14, true), { s: [1, 0.012, 1], r: [Math.PI / 2, 0, 0], p: [0, y, zz], c: 0x2b2e33 }, 'x'); }
   b.add(CYLG(0.008, 0.008, 10), { s: [1, 0.016, 1], p: [0, y + r + 0.006, zc], c: 0x35393f }, 'x'); // כפתור כוונון עליון
   b.add(CYLG(0.008, 0.008, 10), { s: [1, 0.016, 1], r: [0, 0, Math.PI / 2], p: [r + 0.006, y, zc], c: 0x35393f }, 'x');
+  if (lens) { // עדשות מצופות בשני הקצוות
+    TB(b, z0 - 0.0125, z0 - 0.0085, r * 1.28, r * 1.28, 0, y, 0x3a6fe0, 'g', 18);
+    TB(b, z1 + 0.004, z1 + 0.008, r * 1.1, r * 1.1, 0, y, 0x6a58c8, 'g', 18);
+  }
   return y;
+}
+
+// כוונת בודדת (לפריט לוט): הכוונת על פס קצר, מרכז בראשית, מונחת על Y=0
+const OPT_LEN = { red: 0.062, x2: 0.1, x4: 0.17, x8: 0.27 };
+const OPT_CACHE = new Map();
+export function buildOptic(id) {
+  let grp = OPT_CACHE.get(id);
+  if (!grp) {
+    const b = new Builder(), add0 = b.add.bind(b);
+    b.add = (geo, o, k) => add0(geo, o && o.c != null ? Object.assign({}, o, { c: lift(o.c) }) : o, k);
+    const L = OPT_LEN[id] || 0.1;
+    optic(b, id, 0, 0.011, true);
+    rail(b, -L * 0.62, L * 0.62, 0.0045, 0.03, 0x34383e);
+    grp = b.build(MATS()); OPT_CACHE.set(id, grp);
+  }
+  const g = new THREE.Group();
+  for (const m of grp.children) { const mesh = new THREE.Mesh(m.geometry, m.material); mesh.castShadow = true; g.add(mesh); }
+  return g;
 }
 
 // ---- אקדחים ----

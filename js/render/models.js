@@ -1,49 +1,21 @@
-// מודלים תלת-ממדיים מפרימיטיבים: דמויות ריאליסטיות עם קסדה/אפוד/תיק, נשקים, רימונים, מטוס, חבילת אספקה ופריטי לוט.
+// מודלים תלת-ממדיים: דמות עם שלד (IK לאחיזה בנשק), נשקים, רימונים, מטוס, חבילת אספקה, מצנח ופריטי לוט (הדגמים המפורטים ב-weapons/gear/loot/plane.js).
 import * as THREE from 'three';
 import { makeBody } from './character.js';
 import { DEFAULT_LOOK, sanitizeLook } from '../sim/look.js';
 import { gearGroup, packMount, packStrapGroup } from './gear.js';
 import { buildWeapon } from './weapons.js';
-import { WEAPONS, HELMET, VEST, PACK, AMMO, THROWS, itemInfo } from '../sim/data.js';
-
-const M = {}; // מטריאלים משותפים
-const mat = (key, color, o = {}) => (M[key] ||= new THREE.MeshStandardMaterial({ color, roughness: o.r ?? 0.7, metalness: o.m ?? 0.0, ...(o.extra || {}) }));
-const box = (w, h, d, m, x = 0, y = 0, z = 0) => { const g = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m); g.position.set(x, y, z); g.castShadow = true; return g; };
-const cyl = (r1, r2, h, m, seg = 10) => { const g = new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, seg), m); g.castShadow = true; return g; };
-
-const skin = () => mat('skin', 0xd0a07c, { r: 0.8 });
-const cloth = (c) => mat('cl' + c, c, { r: 0.9 });
+import { buildGrenade, buildParachute, buildAirdrop, lootBody } from './loot.js';
+import { WEAPONS, itemInfo } from '../sim/data.js';
 
 // ---------- נשקים ----------
 // הדגמים המפורטים בנויים ב-weapons.js; כאן רק מייצאים אותם כדי ש-game.js ימשיך לייבא מ-models.js
 // userData: muzzle=יציאת הקליע, grip=אגרוף ימין, fore=אגרוף שמאל, sightY=גובה קו הכוונה, cz/zlen=מרכז ואורך לאורך Z
 export { buildWeapon };
 
-export function buildGrenade(kind) {
-  const g = new THREE.Group();
-  if (kind === 'frag') {
-    const b = new THREE.Mesh(new THREE.SphereGeometry(0.055, 12, 10), mat('frag', 0x4b5a35, { r: 0.6 })); b.scale.y = 1.2; b.castShadow = true; g.add(b);
-    g.add(box(0.012, 0.03, 0.012, mat('pin', 0x999999), 0, 0.075, 0));
-    g.add(box(0.012, 0.012, 0.05, mat('pin', 0x999999), 0, 0.08, -0.02));
-  } else if (kind === 'smoke') {
-    const c = cyl(0.04, 0.04, 0.14, mat('smk', 0x8a8e93, { r: 0.5 }), 12); g.add(c);
-    g.add(box(0.085, 0.02, 0.085, mat('smkb', 0x3a3d40), 0, 0.075, 0));
-  } else if (kind === 'stun') {
-    const c = cyl(0.035, 0.035, 0.13, mat('stn', 0x2c2f35, { r: 0.4, m: 0.5 }), 12); g.add(c);
-    g.add(box(0.075, 0.02, 0.075, mat('stnb', 0x9aa0a8), 0, 0.075, 0));
-  } else {
-    const b = cyl(0.04, 0.045, 0.14, mat('mol', 0x6c8a46, { r: 0.2, extra: { transparent: true, opacity: 0.8 } }), 10); g.add(b);
-    const n = cyl(0.015, 0.02, 0.07, mat('mol', 0x6c8a46), 8); n.position.y = 0.1; g.add(n);
-    g.add(box(0.035, 0.05, 0.035, mat('rag', 0xdddddd), 0, 0.15, 0));
-  }
-  return g;
-}
+// רימונים, מצנח וחבילת אספקה בנויים ב-loot.js
+export { buildGrenade, buildParachute, buildAirdrop };
 
 // ---------- דמות ----------
-const HELM_MATS = [null, () => mat('h1', 0xeeeeee, { r: 0.3, m: 0.1 }), () => mat('h2', 0x5b6b3a, { r: 0.65 }), () => mat('h3', 0x1d2024, { r: 0.4, m: 0.3 })];
-const VEST_MATS = [null, () => mat('v1', 0x2a2e36), () => mat('v2', 0x1f2a42), () => mat('v3', 0x6d6a45)];
-const PACK_MATS = [null, () => mat('p1', 0xc9b58a), () => mat('p2', 0x56743c), () => mat('p3', 0x3a452c)];
-
 // ---- IK של זרוע בת שני חלקים ----
 // מוסכמות: הדמות מביטה ל-Z שלילי, ימין = X חיובי. סיבוב חיובי סביב X מניע גף תלוי קדימה (פלג עליון ירך זרוע), ואילו ברך חייבת להתכופף בסיבוב שלילי.
 // הזרוע (קבוצה) תלויה לאורך Y שלילי; האמה מתכופפת סביב ציר ה-X המקומי של הזרוע. לפי כתף S ויעד לאגרוף T (במערכת של upper) ורמז לכיוון המרפק
@@ -249,29 +221,6 @@ const clampv = (v, a, b) => (v < a ? a : v > b ? b : v);
 // המטוס (הרקולס) בנוי ב-plane.js מגאומטריה מאוחדת; כאן רק מייצאים אותו כדי ש-game.js ימשיך לייבא מ-models.js
 export { buildPlane } from './plane.js';
 
-export function buildParachute() {
-  const g = new THREE.Group();
-  const canopy = new THREE.Mesh(new THREE.SphereGeometry(3.2, 18, 10, 0, Math.PI * 2, 0, Math.PI * 0.5), mat('chute', 0xe84b3a, { r: 0.8, extra: { side: THREE.DoubleSide } }));
-  canopy.position.y = 5; canopy.scale.y = 0.75; g.add(canopy);
-  const lineM = new THREE.LineBasicMaterial({ color: 0xdddddd });
-  for (let i = 0; i < 8; i++) {
-    const a = i / 8 * Math.PI * 2;
-    const geo = new THREE.BufferGeometry().setFromPoints([new THREE.Vector3(Math.cos(a) * 3.1, 5.1, Math.sin(a) * 3.1), new THREE.Vector3(0, 1.7, 0)]);
-    g.add(new THREE.Line(geo, lineM));
-  }
-  return g;
-}
-
-export function buildAirdrop() {
-  const g = new THREE.Group();
-  const c = box(1.5, 1.1, 1.5, mat('adc', 0x2f6e8f, { r: 0.5, m: 0.3 }), 0, 0.55, 0); g.add(c);
-  g.add(box(1.56, 0.12, 1.56, mat('adt', 0xf0f0f0), 0, 1.1, 0));
-  g.add(box(1.56, 0.12, 1.56, mat('adt', 0xf0f0f0), 0, 0.0, 0));
-  for (const s of [-1, 1]) g.add(box(0.1, 1.1, 1.56, mat('adr', 0xd9462c), 0.5 * s, 0.55, 0));
-  const chute = buildParachute(); chute.position.y = 1.1; g.add(chute); g.userData.chute = chute;
-  return g;
-}
-
 // ---------- פריט לוט על הקרקע ----------
 const RARE = { 1: 0xcfd6dc, 2: 0x4aa3ff, 3: 0xc65bff, 4: 0xffb23a };
 export function itemRarity(k) {
@@ -294,23 +243,7 @@ export function buildLootMesh(k) {
     const pv = new THREE.Group(); pv.add(w); pv.rotation.set(0, Math.PI / 2, Math.PI / 2); pv.scale.setScalar(Math.min(1.5, 1.4 / Math.max(0.3, U.zlen))); pv.position.y = 0.17;
     inner.add(pv);
   }
-  else if (info.type === 'ammo') { inner.add(box(0.24, 0.12, 0.18, mat('am' + info.id, AMMO[info.id].color, { r: 0.5, m: 0.3 }), 0, 0.1, 0)); inner.add(box(0.25, 0.04, 0.19, mat('amb', 0x222222), 0, 0.17, 0)); }
-  else if (info.type === 'med') {
-    const c = { band: 0xf2f2f2, aid: 0xe84a3a, kit: 0xd23a3a, drink: 0x3ac2e8, pain: 0xe8d23a, adren: 0xf08a2a }[info.id];
-    inner.add(box(0.26, 0.15, 0.2, mat('md' + info.id, c, { r: 0.5 }), 0, 0.12, 0));
-    if (info.id !== 'drink' && info.id !== 'pain' && info.id !== 'adren') { inner.add(box(0.12, 0.02, 0.03, mat('mdx', 0xffffff), 0, 0.2, 0)); inner.add(box(0.03, 0.02, 0.12, mat('mdx', 0xffffff), 0, 0.2, 0)); }
-  } else if (info.type === 'throw') { const t = buildGrenade(info.id); t.scale.setScalar(1.6); t.position.y = 0.18; inner.add(t); }
-  else if (info.type === 'scope') { const s = cyl(0.04, 0.05, 0.24, mat('sc', 0x222428, { r: 0.3, m: 0.6 }), 10); s.rotation.z = Math.PI / 2; s.position.y = 0.12; inner.add(s); }
-  else if (info.type === 'helmet') {
-    const m = HELM_MATS[info.lvl]();
-    const d = new THREE.Mesh(new THREE.SphereGeometry(0.17, 12, 8, 0, Math.PI * 2, 0, Math.PI * 0.6), m); d.position.y = 0.15; d.castShadow = true; inner.add(d);
-  } else if (info.type === 'vest') {
-    inner.add(box(0.36, 0.4, 0.14, VEST_MATS[info.lvl](), 0, 0.25, 0));
-    inner.add(box(0.26, 0.15, 0.05, mat('vp' + info.lvl, [0, 0x23262c, 0x151c2e, 0x57543a][info.lvl]), 0, 0.28, -0.08));
-  } else if (info.type === 'pack') {
-    const sz = [0, 0.34, 0.44, 0.56][info.lvl];
-    inner.add(box(0.34, sz, 0.2, PACK_MATS[info.lvl](), 0, sz / 2 + 0.05, 0));
-  }
+  else inner.add(lootBody(info));
   inner.traverse((o) => { if (o.isMesh) o.castShadow = true; });
   const ring = new THREE.Mesh(new THREE.RingGeometry(0.28, 0.4, 20), new THREE.MeshBasicMaterial({ color: rc, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false }));
   ring.rotation.x = -Math.PI / 2; ring.position.y = 0.03; g.add(ring);
